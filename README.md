@@ -141,6 +141,127 @@ swag init -g cmd/server/main.go
 
 Once the server is running, navigate to `/swagger/index.html` in your browser to access the interactive API documentation.
 
+## Node Executors
+
+FlowCraft comes with several built-in node executors that perform different types of operations. Each node type has specific configuration options and input/output handling.
+
+### HTTP Request Executor
+
+The HTTP Request executor makes HTTP calls to external APIs or services.
+
+**Purpose**: Fetch data from external APIs, send data to external systems, or trigger external processes.
+
+**Configuration Options**:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `url` | string | The URL to make the request to (required) |
+| `method` | string | HTTP method (GET, POST, PUT, DELETE) |
+| `headers` | object | HTTP headers to include with the request |
+| `json_data` | object | JSON payload for POST/PUT requests |
+
+**Example Configuration**:
+
+```json
+{
+  "url": "https://api.example.com/data",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer token123",
+    "Content-Type": "application/json"
+  },
+  "json_data": {
+    "name": "Test Item",
+    "value": 42
+  }
+}
+```
+
+**Template Support**: The URL can include template placeholders using the format `{{key}}` which will be replaced with values from the input data.
+
+**Example with Template**:
+
+```json
+{
+  "url": "https://api.example.com/users/{{user_id}}",
+  "method": "GET"
+}
+```
+
+**Output**: Returns an object with `status_code` and `data` properties.
+
+### Filter Executor
+
+The Filter executor filters data based on specified conditions.
+
+**Purpose**: Remove unwanted items from a dataset, select only the items that match certain criteria.
+
+**Configuration Options**:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `field` | string | The field path to check (supports dot notation for nested fields) |
+| `operator` | string | Comparison operator: equals, not_equals, contains, greater_than, less_than |
+| `value` | any | The value to compare against |
+
+**Example Configuration**:
+
+```json
+{
+  "field": "status",
+  "operator": "equals",
+  "value": "active"
+}
+```
+
+**Example with Nested Fields**:
+
+```json
+{
+  "field": "user.profile.age",
+  "operator": "greater_than",
+  "value": 18
+}
+```
+
+**Input**: Array of objects to filter
+
+**Output**: Filtered array containing only items that match the condition
+
+### Transform Executor
+
+The Transform executor maps data from one structure to another.
+
+**Purpose**: Reshape data, select specific fields, rename fields, or create new computed fields.
+
+**Configuration Options**:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `mapping` | object | The template that defines how to transform input data |
+
+**Example Configuration**:
+
+```json
+{
+  "mapping": {
+    "id": "{{id}}",
+    "fullName": "{{firstName}} {{lastName}}",
+    "contact": {
+      "email": "{{email}}",
+      "phone": "{{phone}}"
+    },
+    "isActive": true
+  }
+}
+```
+
+**Template Format**: Use `{{fieldPath}}` to reference fields from the input data, including nested paths with dot notation.
+
+**Input**: Array of objects to transform
+
+**Output**: Array of transformed objects according to the mapping template
+
 ## Example: Creating a Simple Workflow
 
 Here's an example of how to create a basic workflow that fetches data from an API and filters the results:
