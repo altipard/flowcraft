@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15
-    container_name: flowcraft-postgres
+    container_name: flowcraft-postgres-dev
     environment:
       POSTGRES_USER: flowcraft
       POSTGRES_PASSWORD: flowcraft
@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - flowcraft-postgres-data:/var/lib/postgresql/data
+      - flowcraft-postgres-dev-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U flowcraft"]
       interval: 5s
@@ -18,22 +18,22 @@ services:
 
   redis:
     image: redis:7
-    container_name: flowcraft-redis
+    container_name: flowcraft-redis-dev
     ports:
       - "6379:6379"
     volumes:
-      - flowcraft-redis-data:/data
+      - flowcraft-redis-dev-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  api:
+  api-dev:
     build:
       context: .
-      dockerfile: Dockerfile.api
-    container_name: flowcraft-api
+      dockerfile: Dockerfile.dev
+    container_name: flowcraft-api-dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,15 +41,20 @@ services:
         condition: service_healthy
     env_file:
       - .env.docker
+    environment:
+      - AIR_WORK_DIR=/app
+    volumes:
+      - .:/app:delegated # Mount local code into container
     ports:
       - "8080:8080"
+    command: air
     restart: unless-stopped
 
-  worker:
+  worker-dev:
     build:
       context: .
-      dockerfile: Dockerfile.worker
-    container_name: flowcraft-worker
+      dockerfile: Dockerfile.dev
+    container_name: flowcraft-worker-dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,9 +62,11 @@ services:
         condition: service_healthy
     env_file:
       - .env.docker
-    command: ["--workers=3", "--poll-interval=5s"]
+    volumes:
+      - .:/app:delegated # Mount local code into container
+    command: air -c .air.worker.toml
     restart: unless-stopped
 
 volumes:
-  flowcraft-postgres-data:
-  flowcraft-redis-data:
+  flowcraft-postgres-dev-data:
+  flowcraft-redis-dev-data: 

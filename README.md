@@ -27,6 +27,22 @@ FlowCraft provides a flexible API for defining and executing workflows. It is de
 - PostgreSQL database
 - Redis (for the task queue)
 
+### Environment Variables
+
+FlowCraft uses the following environment variables for configuration:
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `PORT` | HTTP port for the API server | 8080 | `PORT=9000` |
+| `DATABASE_URL` | PostgreSQL connection string | - | `DATABASE_URL=postgres://username:password@localhost:5432/flowcraft` |
+| `REDIS_URL` | Redis connection string | - | `REDIS_URL=redis://localhost:6379/0` |
+| `LOG_LEVEL` | Logging level (debug, info, warn, error) | info | `LOG_LEVEL=debug` |
+
+You can configure these variables either by:
+1. Setting them in your environment
+2. Creating a `.env` file in the project root
+3. Passing them directly to Docker when using Docker Compose
+
 ### Setup
 
 #### Option 1: Manual Setup
@@ -69,7 +85,13 @@ git clone https://github.com/altipard/flowcraft.git
 cd flowcraft
 ```
 
-2. Start the stack:
+2. Create the required environment files:
+
+The repository includes two environment files:
+- `.env` - Used for local development
+- `.env.docker` - Used by the Docker containers (contains container-specific connection strings)
+
+3. Start the stack:
 
 ```bash
 docker-compose up -d
@@ -89,6 +111,44 @@ docker-compose logs -f
 To stop all services:
 ```bash
 docker-compose down
+```
+
+#### Option 3: Development Mode with Hot-Reloading
+
+For a smoother development experience, FlowCraft includes a development setup with hot-reloading capabilities:
+
+1. Start the development stack:
+
+```bash
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+This setup:
+- Mounts your local code directory into the containers
+- Uses Air for hot-reloading (automatically rebuilds and restarts when code changes)
+- Runs both API server and worker in development mode
+- Maintains database state in development-specific volumes
+
+##### About Air
+
+Air is a hot-reloading tool built specifically for Go applications. It:
+- Watches your Go source files for changes
+- Automatically rebuilds your application when changes are detected
+- Restarts your service with the new binary
+- Provides error reporting and colored logs for development
+
+This eliminates the manual cycle of stopping, rebuilding, and restarting your application during development.
+
+When you make changes to your Go code, the containers will automatically rebuild and restart the services.
+
+To view logs:
+```bash
+docker-compose -f docker-compose.dev.yml logs -f
+```
+
+To stop all development services:
+```bash
+docker-compose -f docker-compose.dev.yml down
 ```
 
 ### Worker Setup
@@ -647,6 +707,160 @@ Response:
   "output_data": "{\"2\":[{\"id\":1,\"name\":\"Example\",\"status\":\"active\"}]}"
 }
 ```
+
+## Practical Example: Working with JSON API Data
+
+Let's create a practical workflow that fetches data from JSONPlaceholder (a free fake API for testing) and processes it.
+
+### Workflow: Fetch Posts and Filter by User
+
+This workflow will:
+1. Fetch a list of posts from JSONPlaceholder
+2. Filter posts to show only those from a specific user
+3. Transform the data structure to a simplified format
+
+#### 1. Create the Workflow
+
+```bash
+curl -X POST http://localhost:8080/api/workflows \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "JSONPlaceholder Demo",
+    "description": "Fetch and process data from JSONPlaceholder API"
+  }'
+```
+
+#### 2. Add HTTP Request Node to Fetch Posts
+
+```bash
+curl -X POST http://localhost:8080/api/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "node_type": "httpRequest",
+    "position_x": 100,
+    "position_y": 100,
+    "name": "Fetch Posts",
+    "config": "{\"url\":\"https://jsonplaceholder.typicode.com/posts\",\"method\":\"GET\",\"headers\":{\"Content-Type\":\"application/json\"}}"
+  }'
+```
+
+This will fetch all posts from the API, with a response like:
+
+```json
+[
+  { 
+    "id": 1, 
+    "title": "sunt aut facere repellat provident...", 
+    "body": "quia et suscipit suscipit recusandae...", 
+    "userId": 1 
+  },
+  { 
+    "id": 2, 
+    "title": "qui est esse", 
+    "body": "est rerum tempore vitae sequi...", 
+    "userId": 1 
+  },
+  ...
+]
+```
+
+#### 3. Add Filter Node to Get Posts from User 1
+
+```bash
+curl -X POST http://localhost:8080/api/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "node_type": "filter",
+    "position_x": 300,
+    "position_y": 100,
+    "name": "Filter User 1 Posts",
+    "config": "{\"field\":\"userId\",\"operator\":\"equals\",\"value\":1}"
+  }'
+```
+
+This will filter the posts to only include those where `userId` equals `1`.
+
+#### 4. Add Transform Node to Format the Results
+
+```bash
+curl -X POST http://localhost:8080/api/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "node_type": "transform",
+    "position_x": 500,
+    "position_y": 100,
+    "name": "Format Results",
+    "config": "{\"mapping\":{\"post_id\":\"{{id}}\",\"headline\":\"{{title}}\",\"content\":\"{{body}}\"}}"
+  }'
+```
+
+This will transform each post to a simpler format:
+
+```json
+[
+  {
+    "post_id": 1,
+    "headline": "sunt aut facere repellat provident...",
+    "content": "quia et suscipit suscipit recusandae..."
+  },
+  ...
+]
+```
+
+#### 5. Connect the Nodes
+
+Connect the HTTP node to the Filter node:
+
+```bash
+curl -X POST http://localhost:8080/api/connections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "source_node_id": 1,
+    "target_node_id": 2,
+    "source_handle": "output",
+    "target_handle": "input"
+  }'
+```
+
+Connect the Filter node to the Transform node:
+
+```bash
+curl -X POST http://localhost:8080/api/connections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "source_node_id": 2,
+    "target_node_id": 3,
+    "source_handle": "output",
+    "target_handle": "input"
+  }'
+```
+
+#### 6. Run the Workflow
+
+```bash
+curl -X POST http://localhost:8080/api/workflows/1/execute
+```
+
+#### 7. Check Results
+
+```bash
+curl -X GET http://localhost:8080/api/executions/1/status
+```
+
+The response will contain the final transformed data with all posts from user 1 in the simplified format.
+
+### Extending the Example
+
+You can extend this workflow by:
+
+1. Adding another HTTP Request node to fetch user details
+2. Using the Transform node to combine user data with their posts
+3. Adding a Filter node to find posts with specific words in the title
 
 ## System Architecture
 
