@@ -1,0 +1,38 @@
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Copy go.mod and go.sum first to leverage Docker cache
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the source code
+COPY . .
+
+# Create web/dist directory if it doesn't exist
+RUN mkdir -p web/dist
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/flowcraft-api ./cmd/server/main.go
+
+# Use a small alpine image for the final stage
+FROM alpine:3.16
+
+RUN apk --no-cache add ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy the binary from the builder stage
+COPY --from=builder /app/flowcraft-api .
+
+# Copy the swagger docs folder
+COPY --from=builder /app/docs ./docs
+
+# Create web/dist directory
+RUN mkdir -p web/dist
+
+# Expose the API port
+EXPOSE 8080
+
+# Run the API server
+ENTRYPOINT ["/app/flowcraft-api"] 

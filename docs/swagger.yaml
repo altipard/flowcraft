@@ -1,0 +1,687 @@
+basePath: /api
+definitions:
+  models.Connection:
+    properties:
+      id:
+        type: integer
+      source_handle:
+        type: string
+      source_node_id:
+        type: integer
+      target_handle:
+        type: string
+      target_node_id:
+        type: integer
+      workflow_id:
+        type: integer
+    type: object
+  models.Node:
+    properties:
+      config:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      node_type:
+        type: string
+      position_x:
+        type: number
+      position_y:
+        type: number
+      workflow_id:
+        type: integer
+    type: object
+  models.Workflow:
+    properties:
+      connections:
+        items:
+          $ref: '#/definitions/models.Connection'
+        type: array
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      nodes:
+        description: Relationships
+        items:
+          $ref: '#/definitions/models.Node'
+        type: array
+      updated_at:
+        type: string
+      workflow_data:
+        type: string
+    type: object
+  models.WorkflowRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API Server for FlowCraft - Workflow Management System
+  title: FlowCraft API
+  version: "1.0"
+paths:
+  /connections:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all connections
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Connection'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all connections
+      tags:
+      - connections
+    post:
+      consumes:
+      - application/json
+      description: Creates a new connection between nodes
+      parameters:
+      - description: Connection data
+        in: body
+        name: connection
+        required: true
+        schema:
+          $ref: '#/definitions/models.Connection'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Connection'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new connection
+      tags:
+      - connections
+  /connections/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a connection based on its ID
+      parameters:
+      - description: Connection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a connection
+      tags:
+      - connections
+    get:
+      consumes:
+      - application/json
+      description: Returns a specific connection based on its ID
+      parameters:
+      - description: Connection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Connection'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get connection by ID
+      tags:
+      - connections
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing connection
+      parameters:
+      - description: Connection ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated connection data
+        in: body
+        name: connection
+        required: true
+        schema:
+          $ref: '#/definitions/models.Connection'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Connection'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update a connection
+      tags:
+      - connections
+  /executions/{id}/status:
+    get:
+      consumes:
+      - application/json
+      description: Returns the status of a workflow execution
+      parameters:
+      - description: Execution ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get execution status
+      tags:
+      - executions
+  /nodes:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all nodes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Node'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all nodes
+      tags:
+      - nodes
+    post:
+      consumes:
+      - application/json
+      description: Creates a new node in a workflow
+      parameters:
+      - description: Node data
+        in: body
+        name: node
+        required: true
+        schema:
+          $ref: '#/definitions/models.Node'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Node'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new node
+      tags:
+      - nodes
+  /nodes/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a node based on its ID
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a node
+      tags:
+      - nodes
+    get:
+      consumes:
+      - application/json
+      description: Returns a specific node based on its ID
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Node'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get node by ID
+      tags:
+      - nodes
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing node
+      parameters:
+      - description: Node ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated node data
+        in: body
+        name: node
+        required: true
+        schema:
+          $ref: '#/definitions/models.Node'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Node'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update a node
+      tags:
+      - nodes
+  /workflows:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all available workflows
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Workflow'
+            type: array
+      summary: Get all workflows
+      tags:
+      - workflows
+    post:
+      consumes:
+      - application/json
+      description: Creates a new workflow with the provided data
+      parameters:
+      - description: Workflow data
+        in: body
+        name: workflow
+        required: true
+        schema:
+          $ref: '#/definitions/models.WorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Workflow'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new workflow
+      tags:
+      - workflows
+  /workflows/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a workflow based on its ID
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a workflow
+      tags:
+      - workflows
+    get:
+      consumes:
+      - application/json
+      description: Returns a specific workflow based on its ID
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Workflow'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get workflow by ID
+      tags:
+      - workflows
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing workflow with the provided data
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated workflow data
+        in: body
+        name: workflow
+        required: true
+        schema:
+          $ref: '#/definitions/models.WorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Workflow'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update a workflow
+      tags:
+      - workflows
+  /workflows/{id}/execute:
+    post:
+      consumes:
+      - application/json
+      description: Executes a workflow with the given ID
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Input data for workflow execution
+        in: body
+        name: inputData
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Execute a workflow
+      tags:
+      - executions
+  /workflows/{workflowId}/connections:
+    get:
+      consumes:
+      - application/json
+      description: Returns all connections for a specific workflow
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: workflowId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Connection'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get connections for a workflow
+      tags:
+      - connections
+  /workflows/{workflowId}/nodes:
+    get:
+      consumes:
+      - application/json
+      description: Returns all nodes for a specific workflow
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: workflowId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Node'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get nodes for a workflow
+      tags:
+      - nodes
+swagger: "2.0"

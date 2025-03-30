@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: flowcraft-postgres
+    environment:
+      POSTGRES_USER: flowcraft
+      POSTGRES_PASSWORD: flowcraft
+      POSTGRES_DB: flowcraft
+    ports:
+      - "5432:5432"
+    volumes:
+      - flowcraft-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowcraft"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: flowcraft-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - flowcraft-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: flowcraft-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://flowcraft:flowcraft@postgres:5432/flowcraft
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: flowcraft-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://flowcraft:flowcraft@postgres:5432/flowcraft
+      REDIS_URL: redis://redis:6379
+    command: ["--workers=3", "--poll-interval=5s"]
+    restart: unless-stopped
+
+volumes:
+  flowcraft-postgres-data:
+  flowcraft-redis-data:

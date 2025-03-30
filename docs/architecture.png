@@ -1,0 +1,13 @@
+This file should be a PNG diagram showing the FlowCraft architecture.
+
+The diagram should visualize:
+1. API Server component
+2. Worker component
+3. Redis Queue
+4. PostgreSQL Database
+5. Workflow Engine
+6. Node Executors
+7. The data flow between components
+
+You'll need to create this diagram using a drawing tool like draw.io, Lucidchart, or any other diagram tool
+and save it as architecture.png in the docs folder. 
