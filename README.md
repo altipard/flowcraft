@@ -262,6 +262,250 @@ The Transform executor maps data from one structure to another.
 
 **Output**: Array of transformed objects according to the mapping template
 
+## Extending FlowCraft with Custom Executors
+
+FlowCraft supports extending the system with custom executors using Go plugins. This allows you to add custom functionality without modifying the core codebase.
+
+### Creating a Custom Executor Plugin
+
+Here's a step-by-step guide to create a custom executor plugin:
+
+#### 1. Create a New Go Project for Your Plugin
+
+Create a directory for your plugin:
+
+```bash
+mkdir -p plugins/math-executor
+cd plugins/math-executor
+```
+
+Initialize a new Go module:
+
+```bash
+go mod init math-executor
+```
+
+#### 2. Implement the NodeExecutor Interface
+
+Create a main.go file with your custom executor implementation:
+
+```go
+package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+// MathExecutor performs basic math operations on input numbers
+type MathExecutor struct{}
+
+// NewExecutor is the exported function that FlowCraft will call to create your executor
+// This function name is required and must return a NodeExecutor interface
+func NewExecutor() interface{} {
+	return &MathExecutor{}
+}
+
+// Execute implements the NodeExecutor interface
+func (e *MathExecutor) Execute(config map[string]interface{}, input map[string]interface{}) (interface{}, error) {
+	// Get operation from config
+	operation, ok := config["operation"].(string)
+	if !ok {
+		return nil, fmt.Errorf("operation is required in config")
+	}
+
+	// Get operands (can be from input or config)
+	var value1, value2 float64
+	var err error
+
+	// First operand can come from config or input
+	if val1Config, exists := config["value1"]; exists {
+		// If value1 is directly in config
+		if strVal, ok := val1Config.(string); ok {
+			value1, err = strconv.ParseFloat(strVal, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value1: %v", err)
+			}
+		} else if numVal, ok := val1Config.(float64); ok {
+			value1 = numVal
+		} else {
+			return nil, fmt.Errorf("value1 must be a number")
+		}
+	} else if inputVal, exists := input["value1"]; exists {
+		// If value1 is in input
+		if numVal, ok := inputVal.(float64); ok {
+			value1 = numVal
+		} else {
+			return nil, fmt.Errorf("input value1 must be a number")
+		}
+	} else {
+		return nil, fmt.Errorf("value1 is required in config or input")
+	}
+
+	// Second operand, similar to first
+	if val2Config, exists := config["value2"]; exists {
+		if strVal, ok := val2Config.(string); ok {
+			value2, err = strconv.ParseFloat(strVal, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value2: %v", err)
+			}
+		} else if numVal, ok := val2Config.(float64); ok {
+			value2 = numVal
+		} else {
+			return nil, fmt.Errorf("value2 must be a number")
+		}
+	} else if inputVal, exists := input["value2"]; exists {
+		if numVal, ok := inputVal.(float64); ok {
+			value2 = numVal
+		} else {
+			return nil, fmt.Errorf("input value2 must be a number")
+		}
+	} else {
+		return nil, fmt.Errorf("value2 is required in config or input")
+	}
+
+	// Perform the operation
+	var result float64
+	switch operation {
+	case "add":
+		result = value1 + value2
+	case "subtract":
+		result = value1 - value2
+	case "multiply":
+		result = value1 * value2
+	case "divide":
+		if value2 == 0 {
+			return nil, fmt.Errorf("division by zero")
+		}
+		result = value1 / value2
+	default:
+		return nil, fmt.Errorf("unsupported operation: %s", operation)
+	}
+
+	// Return the result
+	return map[string]interface{}{
+		"result": result,
+	}, nil
+}
+```
+
+#### 3. Build the Plugin
+
+Compile your plugin as a shared object (.so) file:
+
+```bash
+go build -buildmode=plugin -o math-executor.so .
+```
+
+#### 4. Move the Plugin to an Accessible Location
+
+Create a plugins directory in your FlowCraft project (if it doesn't exist) and copy your plugin:
+
+```bash
+mkdir -p /path/to/flowcraft/plugins
+cp math-executor.so /path/to/flowcraft/plugins/
+```
+
+### Using Your Custom Executor in FlowCraft
+
+#### 1. Create a Node with Your Custom Executor
+
+When creating a node, specify the node type using the `plugin:` prefix followed by the path to your plugin:
+
+```bash
+curl -X POST http://localhost:8080/api/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "node_type": "plugin:/path/to/flowcraft/plugins/math-executor.so",
+    "position_x": 400,
+    "position_y": 200,
+    "name": "Calculate Sum",
+    "config": "{\"operation\":\"add\",\"value1\":10,\"value2\":5}"
+  }'
+```
+
+#### 2. Connect Your Node in a Workflow
+
+Connect it like any other node, and the system will dynamically load and use your custom executor when the workflow runs.
+
+### Example Workflow Using Custom Math Executor
+
+Here's a complete example of a workflow that uses the custom math executor:
+
+1. Create a workflow:
+
+```bash
+curl -X POST http://localhost:8080/api/workflows \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Math Workflow",
+    "description": "Perform math operations"
+  }'
+```
+
+2. Add an HTTP request node to get some data:
+
+```bash
+curl -X POST http://localhost:8080/api/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "node_type": "httpRequest",
+    "position_x": 100,
+    "position_y": 100,
+    "name": "Get Numbers",
+    "config": "{\"url\":\"https://api.example.com/numbers\",\"method\":\"GET\"}"
+  }'
+```
+
+3. Add your custom math node:
+
+```bash
+curl -X POST http://localhost:8080/api/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "node_type": "plugin:/path/to/flowcraft/plugins/math-executor.so",
+    "position_x": 300,
+    "position_y": 100,
+    "name": "Calculate",
+    "config": "{\"operation\":\"multiply\"}"
+  }'
+```
+
+4. Connect the nodes:
+
+```bash
+curl -X POST http://localhost:8080/api/connections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": 1,
+    "source_node_id": 1,
+    "target_node_id": 2,
+    "source_handle": "output",
+    "target_handle": "input"
+  }'
+```
+
+5. Run the workflow:
+
+```bash
+curl -X POST http://localhost:8080/api/workflows/1/execute
+```
+
+### Notes on Plugin Development
+
+1. **Compatibility**: Your plugin must be compiled with the same version of Go as FlowCraft.
+
+2. **Interface Compliance**: Your plugin must export a `NewExecutor()` function that returns an object implementing the `NodeExecutor` interface.
+
+3. **Error Handling**: Proper error handling in your plugin is essential, as errors will be propagated to the workflow execution.
+
+4. **Deployment**: When running in Docker, you need to mount your plugins directory into the container.
+
+5. **Security**: Be cautious when loading plugins, as they run with the same privileges as the main application.
+
 ## Example: Creating a Simple Workflow
 
 Here's an example of how to create a basic workflow that fetches data from an API and filters the results:
