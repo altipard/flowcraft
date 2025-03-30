@@ -34,7 +34,7 @@ FlowCraft provides a flexible API for defining and executing workflows. It is de
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/flowcraft.git
+git clone https://github.com/altipard/flowcraft.git
 cd flowcraft
 ```
 
@@ -65,7 +65,7 @@ The easiest way to get started is with Docker Compose, which will start all the 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/flowcraft.git
+git clone https://github.com/altipard/flowcraft.git
 cd flowcraft
 ```
 
